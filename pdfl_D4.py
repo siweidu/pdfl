@@ -29,7 +29,7 @@ def main():
     
     setting_column = [
         [sg.Text("Port", size=(10,1))], 
-        [sg.Listbox(values=portdesc, size=(30,6), key='-PORT-'), sg.Button("Connect", size=(10,6))],
+        [sg.Listbox(values=portdesc, size=(30,6), enable_events=True, key='-PORTLIST-'), sg.Button("Connect", size=(10,6))],
         [sg.Text('_' * 40)],
         [sg.Text("Total Time", size=(10,1)), sg.Input(key='-RUNTIME-', size=(10,1)), sg.Text("Minutes")],
         [sg.Text("Interval", size=(10,1)), sg.Input(key='-INTER-',size=(10,1)), sg.Text("Seconds")],
@@ -55,13 +55,17 @@ def main():
 
     while True:
         event, values = window.read()
-        if event == "OK" or event == sg.WIN_CLOSED:
+        if event in (sg.WIN_CLOSED, 'Exit'):                # always check for closed window
             break
-    window.close()
+        if event == '-PORTLIST-':
+            port = values['-PORTLIST-']
+        
 
 
 
 
+
+"""
 class ScaleKern:
     bdrate = 9600
     timeout = 0.3
@@ -78,7 +82,7 @@ class ScaleKern:
     def setinter():
     
     def setfile():    
-
+"""
 
 
 
