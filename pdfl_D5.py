@@ -12,11 +12,10 @@
 #
 #######################
 
-import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import matplotlib
-matplotlib.use('TkAgg')
+
 
 import time
 from time import sleep
@@ -28,10 +27,11 @@ import PySimpleGUI as sg
 
 def main():
     ports = serial.tools.list_ports.comports()
-    
-    fig = matplotlib.figure.Figure(figsize=(6, 4), dpi=100)
-    fig.set(xlabel='Time (s)', ylabel='Powder flow rate (g/s)',title='Powder Flow Rate')
-    fig.annotate()
+    px =[1,2,3]
+    py =[2,4,6]
+    #fig = matplotlib.figure.Figure(figsize=(6, 4), dpi=100)
+    #fig.set(xlabel='Time (s)', ylabel='Powder flow rate (g/s)',title='Powder Flow Rate')
+    #fig.annotate()
 
 
 
@@ -63,8 +63,17 @@ def main():
 
     window = sg.Window("Powder Flow Measurement", layout, finalize=True)
 
-    fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
-
+    # fig_canvas_agg = draw_figure(window['-CANVAS-'].TKCanvas, fig)
+    canvas_elem = window['-CANVAS-']
+    canvas = canvas_elem.TKCanvas
+    
+    
+    fig = Figure()
+    ax = fig.add_subplot(111)
+    ax.set_xlabel("X axis")
+    ax.set_ylabel("Y axis")
+    ax.grid()
+    fig_agg = draw_figure(canvas, fig)
 
     enable_run = enable_connect = False
     ttime = interval = 0
@@ -101,7 +110,37 @@ def main():
         elif event == '-RUN-' and enable_run:
             if filename != '' and ttime>0 and interval>0:
                 enable_connect=False
-                scale.start(ttime, interval, filename,fig_callback)
+                
+                runtime=0
+                f = open(filename, 'w')
+                scale.tare()
+
+                #start timer
+                tstart = time.perf_counter()
+                
+                while runtime < ttime:
+                    sleep(interval)
+                    weight = scale.read() # float or string
+                    runtime += interval
+                    realtimer = time.perf_counter() - tstart
+                    print(f'{runtime}, {realtimer:.2f}, {weight}')
+                    f.write(str(runtime).replace("b", " ") + ',' + str(realtimer) + ',' + str(weight)+'\n') #write time and weight into text file
+                    px = px.append(realtimer) #time
+                    py = py.append(weight) # weight float   
+                    pyrate = np.gradient(py,px) #rate
+                    pymean = np.mean(pyrate) 
+                    pystd = np.std(pyrate)
+                    fig.plot(px,pyrate,'x',label='what is what')
+                    ax.cla()                    # clear the subplot
+                    ax.grid()                   # draw the grid
+                    ax.plot(px, pyrate, 'x', label = 'what is')
+                    fig_agg.draw()
+
+
+                f.close()
+
+
+
 
 
 
@@ -110,22 +149,6 @@ def draw_figure(canvas, figure):
     figure_canvas_agg.draw()
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
-
-
-def fig_callback(x,y):
-    ax, ay =[]
-
-    ax = ax.append(x) #time
-    ay = ay.append(y) # weight     
-    ayrate = np.gradient(ay,ax) #rate
-    aymean = np.mean(ayrate) 
-    aystd = np.std(ayrate)
-    
-    fig.plot(ax,ayrate,'x',label='what is what')
-    
-
-    
-    return 
 
 
 
@@ -156,32 +179,23 @@ class ScaleKern:
             s.close()
             return 1
 
-    def start(self, ttime, inter, filename, callback):
-
-        runtime=0
-        f = open(filename, 'w') 
-        #tare balance
+    def tare(self):
         self.s.write(b't')
-        #start timer
-        tstart = time.perf_counter()
-        
-        # read data and save to file
-        while runtime < ttime:
-            sleep(inter)
-            runtime += inter
-            self.s.reset_input_buffer()      #clear buffer
-            self.s.write(b'w')
-            strweight = self.s.readline()   
-            realtimer = time.perf_counter() - tstart
-            print(f'{runtime}, {realtimer:.2f}, {strweight}')
-            nweight = strweight.translate({ord(i): None for i in 'bg\\rn\' '})
-            f.write(str(runtime).replace("b", " ") + ',' + str(realtimer) + ',' + str(nweight)+'\n') #write time and weight into text file
-            callback(realtimer,float(nweight))
-
-        #end of program
-        f.close()
-        self.s.close()  
     
-        return 0
+
+    def read(self):
+        self.s.reset_input_buffer()      #clear buffer
+        self.s.write(b'w')
+        strweight = self.s.readline()   
+        nweight = strweight.translate({ord(i): None for i in 'bg\\rn\' '})
+        return nweight
+
+
+    def __del__(self):
+        self.s.close()  
+
+
+
+
 
 
