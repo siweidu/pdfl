@@ -12,6 +12,8 @@
 #
 #######################
 
+#from random import random
+
 from matplotlib.figure import Figure
 import numpy as np
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
@@ -27,12 +29,9 @@ import PySimpleGUI as sg
 
 def main():
     ports = serial.tools.list_ports.comports()
-    px =[1,2,3]
-    py =[2,4,6]
-    #fig = matplotlib.figure.Figure(figsize=(6, 4), dpi=100)
-    #fig.set(xlabel='Time (s)', ylabel='Powder flow rate (g/s)',title='Powder Flow Rate')
-    #fig.annotate()
-
+    px = []
+    py = []
+    pyrate = []
 
 
 
@@ -70,12 +69,13 @@ def main():
     
     fig = Figure()
     ax = fig.add_subplot(111)
-    ax.set_xlabel("X axis")
-    ax.set_ylabel("Y axis")
+    ax.set_xlabel("time (s)")
+    ax.set_ylabel("Powder flow rate (g/s)")
     ax.grid()
     fig_agg = draw_figure(canvas, fig)
 
-    enable_run = enable_connect = False
+    enable_run = False       #change to False after test
+    enable_connect = False  
     ttime = interval = 0
     filename = 'tempfile'
 
@@ -98,7 +98,6 @@ def main():
         elif event == '-TIME-':
             if values['-TIME-'].isnumeric(): 
                 ttime = int(values['-TIME-'])
-                # scale.setruntime(int(values['-RUNTIME-']))
                 print("Total measure time set to " + values['-TIME-'] + " minutes")
         elif event == '-INTER-':
             if values['-INTER-'].isnumeric(): 
@@ -113,34 +112,35 @@ def main():
                 
                 runtime=0
                 f = open(filename, 'w')
-                scale.tare()
+                scale.tare()          # dis comment after test
 
                 #start timer
                 tstart = time.perf_counter()
                 
-                while runtime < ttime:
+                while runtime < ttime*60:
                     sleep(interval)
-                    weight = scale.read() # float or string
+                    weight = scale.read() # float or string  dis comment after test
+                    #weight = test()
                     runtime += interval
                     realtimer = time.perf_counter() - tstart
                     print(f'{runtime}, {realtimer:.2f}, {weight}')
                     f.write(str(runtime).replace("b", " ") + ',' + str(realtimer) + ',' + str(weight)+'\n') #write time and weight into text file
-                    px = px.append(realtimer) #time
-                    py = py.append(weight) # weight float   
-                    pyrate = np.gradient(py,px) #rate
-                    pymean = np.mean(pyrate) 
-                    pystd = np.std(pyrate)
-                    fig.plot(px,pyrate,'x',label='what is what')
-                    ax.cla()                    # clear the subplot
-                    ax.grid()                   # draw the grid
-                    ax.plot(px, pyrate, 'x', label = 'what is')
-                    fig_agg.draw()
+                    px.append(realtimer) #time
+                    py.append(weight) # weight float   
+                    
+
+
 
 
                 f.close()
-
-
-
+                pyrate = np.gradient(py,px) #rate
+                pymean = np.mean(pyrate) 
+                pystd = np.std(pyrate)
+                #ax.cla()                    # clear the subplot
+                #ax.grid()                   # draw the grid
+                ax.plot(px, pyrate, 'x', label = 'Powder flow rate')
+                fig_agg.draw()
+                print('Measurement completed. \n    Average flow rate: {0} (g/s) \n    Standard deviation: {1} (g/s)' .format(pymean, pystd))
 
 
 
@@ -150,6 +150,10 @@ def draw_figure(canvas, figure):
     figure_canvas_agg.get_tk_widget().pack(side='top', fill='both', expand=1)
     return figure_canvas_agg
 
+"""
+def test():
+    return random()
+"""
 
 
 
